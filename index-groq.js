@@ -64,7 +64,6 @@ async function cargarLocalidades() {
 async function existePost(urlFb) {
     try {
         const connection = await mysql.createConnection(dbConfig);
-        // Buscamos en 'des' y 'nota' para evitar duplicados reales
         const [rows] = await connection.execute(
             'SELECT id_mascota FROM mascota WHERE des LIKE ? OR nota LIKE ?', 
             [`%${urlFb}%`, `%${urlFb}%`]
@@ -108,11 +107,23 @@ function buscarImagenRecursiva(obj) {
 }
 
 const mapearIDs = (datos) => {
-    const categorias = { "PERDIDO": 1, "ENCONTRADO": 2, "ADOPCION": 3 };
-    const tipos = { "PERRO": 1, "GATO": 2, "OTRO": 3 };
+    // 🏁 NUEVOS IDS DE CATEGORÍA: 10 Encontrado, 20 Perdido, 23 Adopción
+    const categorias = { 
+        "ENCONTRADO": 10, 
+        "PERDIDO": 20, 
+        "ADOPCION": 23 
+    };
+    
+    // 🏁 NUEVOS IDS DE TIPO: 10 Perro, 20 Gato, 30 Otro
+    const tipos = { 
+        "PERRO": 10, 
+        "GATO": 20, 
+        "OTRO": 30 
+    };
+
     return {
-        id_categoria: categorias[datos.id_categoria?.toUpperCase()] || 1,
-        id_tipo: tipos[datos.id_tipo?.toUpperCase()] || 1
+        id_categoria: categorias[datos.id_categoria?.toUpperCase()] || 20,
+        id_tipo: tipos[datos.id_tipo?.toUpperCase()] || 10
     };
 };
 
@@ -154,7 +165,6 @@ async function iniciarRobot() {
             const imageUrl = buscarImagenRecursiva(post);
             const urlFb = post.url || `https://www.facebook.com/${post.id}`;
             
-            // 🏁 EL CONSOLE.LOG SOLICITADO
             console.log(`\n🔗 Procesando Post: ${urlFb}`);
 
             if (await existePost(urlFb)) {
@@ -207,11 +217,7 @@ async function iniciarRobot() {
                 
                 form.append('celular', celularLimpio);
                 form.append('id_usuario', celularLimpio); 
-                
-                // 🏁 Nombre limpio para el contacto
                 form.append('nombre_contacto', post.user?.name || 'Usuario FB');
-                
-                // 🏁 GUARDADO EN NOTA: Concatenamos link y tel para que no se pisen
                 form.append('nota', `Tel: ${celularLimpio} | Link FB: ${urlFb}`);
                 
                 form.append('foto2', fs.createReadStream(rutaLocal));
@@ -224,7 +230,7 @@ async function iniciarRobot() {
                 const apiRes = await axios.post(API_URL, form, { headers: { ...form.getHeaders() } });
 
                 if (apiRes.data.success) {
-                    console.log(`✅ PUBLICADO: ID ${apiRes.data.insertId} | Link guardado en nota.`);
+                    console.log(`✅ PUBLICADO: ID ${apiRes.data.insertId} | Cat: ${ids.id_categoria} | Tipo: ${ids.id_tipo}`);
                 }
 
                 await esperarConReloj(8);
